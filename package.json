@@ -1,0 +1,14 @@
+{
+  "name": "mini-git",
+  "version": "1.0.0",
+  "description": "",
+  "main": "mini-git.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "udondokodoon@gmail.com",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.3.4"
+  }
+}
