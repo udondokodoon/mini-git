@@ -1,5 +1,7 @@
 module.exports = (function() {
   var Promise = require("bluebird");
+  var exec = require("child_process").exec;
+
   var MiniGit = function(workingDirPath) {
     this.wd = workingDirPath;
     this.git = require("simple-git")(workingDirPath);
@@ -40,6 +42,61 @@ module.exports = (function() {
         }.bind(this));
       }.bind(this));
     }.bind(this));
+  };
+
+  /**
+   * リモートブランチリスト 最新のN件
+   */
+  MiniGit.prototype.latestBranches = function(count) {
+    var getCurrentBranch = new Promise(function(resolve, reject) {
+      this.git._run(["rev-parse", "--abbrev-ref", "HEAD"], function(err, data) {
+        if (err) {
+          return reject(err);
+        }
+        resolve(data.replace(/\n/, ""));
+      });
+    }.bind(this));
+    var getBranches = this.fetch().then(function() {
+      return new Promise(function(resolve, reject) {
+        exec(["git", "for-each-ref", "--sort='-committerdate'", "--format='%(refname:short) %(subject)'", "refs/remotes", "--count=" + count].join(" "), { cwd: this.wd }, function(err, stdout, stderr) {
+          if (err) {
+            return reject(err);
+          }
+          var list = stdout.split(/\n/).map(function(line) {
+            if (/^\s*$/.test(line)) {
+              return null;
+            }
+            var name, desc;
+            var cols = line.split(/\s+/);
+            name = cols.slice(0, 1).join(" ");
+            desc = cols.slice(1).join(" ");
+            if (name === "HEAD") {
+              return null;
+            }
+            return {
+              name: name,
+              description: desc,
+              selected: false
+            }
+          }).filter(function(notNull) { return notNull; });
+          resolve(list);
+        });
+      }.bind(this));
+    }.bind(this));
+
+    return Promise.all([
+      getCurrentBranch,
+      getBranches
+    ]).spread(function(currentBranch, branches) {
+      console.log(currentBranch);
+      branches.forEach(function(record) {
+        if (record.name !== currentBranch) {
+          return;
+        }
+        record.selected = true;
+      });
+      return branches;
+    });
   };
 
   return MiniGit;
